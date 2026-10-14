@@ -1,68 +1,92 @@
-import time
-import cv2
+import pygame
+from pygame.locals import *
+from OpenGL.GL import *
+from OpenGL.GLU import *
 import numpy as np
-import torch
+"""Want to Generrate a Disco Light Using Python and Mathematics Logic @2seniors and @JACKSON"""
 
-# Ensure PyTorch is strictly targeting your Nvidia GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-if device.type == "cpu":
-    raise RuntimeError(
-        "Nvidia GPU not detected by PyTorch! Make sure CUDA drivers are installed."
-    )
 
-print(f"Targeting GPU: {torch.cuda.get_device_name(0)}")
+INITIAL_PARTICLE_COUNT = 80000
+WINDOW_SIZE = (1280, 720)
 
-# Screen dimensions (Set high to maximize GPU load)
-WIDTH, HEIGHT = 1920, 1080
+def generate_particle_cloud(count):
+    """Tumhara hi wala formula - bas ek baar banega"""
+    indices = np.arange(count)
+    phi = np.arccos(1 - 2 * (indices / count))
+    theta = np.pi * (1 + 5**0.5) * indices
 
-# Pre-allocate mathematical grids directly on the Nvidia VRAM
-x = torch.linspace(-10, 10, WIDTH, device=device)
-y = torch.linspace(-10, 10, HEIGHT, device=device)
-X, Y = torch.meshgrid(x, y, indexing="xy")
+    radius = 5.0 + 2.0 * np.sin(theta * 5)#"""Use Of Mathematical Concepts Like Trigonometry and 3D Geometry
+   # People who says what is use of sin cos and 3D Geometry"""
+    x = radius * np.sin(phi) * np.cos(theta)
+    y = radius * np.sin(phi) * np.sin(theta)
+    z = radius * np.cos(phi)
 
-print("Launching simulation loop. Press 'q' in the window to exit.")
-start_time = time.time()
+    r = 0.5 + 0.5 * np.sin(theta)
+    g = 0.5 + 0.5 * np.cos(phi)
+    b = 0.8 + 0.2 * np.sin(phi * theta)
 
-while True:
-    t = time.time() - start_time
+    positions = np.stack((x, y, z), axis=-1).astype(np.float32)#Vector Algbra
+    colors = np.stack((r, g, b), axis=-1).astype(np.float32)
+    return positions, colors
 
-    # 1. HEAVY GPU COMPUTATION LAYER
-    # Running thousands of trigonometric and exponential functions per pixel to hit 100% load
-    r = torch.sqrt(X**2 + Y**2)
-    z = (
-        torch.sin(r - 5 * t)
-        * torch.cos(X * torch.sin(t) - Y * torch.cos(t))
-        * torch.exp(-0.05 * r)
-    )
+def main():
+    pygame.init()
+    pygame.display.set_mode(WINDOW_SIZE, DOUBLEBUF | OPENGL)
+    pygame.display.set_caption("Fixed Loop - Jackson's Visualization")
 
-    # Distort coordinates further to keep GPU math engines working continuously
-    z += 0.5 * torch.sin(X * 2.0 + t) * torch.cos(Y * 2.0 - t)
-    z += 0.25 * torch.sin(r * 4.0 - 3.0 * t)
+    glEnable(GL_DEPTH_TEST)
+    glEnable(GL_POINT_SMOOTH)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glPointSize(2.5)
+    glClearColor(0.02, 0.02, 0.05, 1.0) 
 
-    # Normalize the output values to a 0.0 - 1.0 range
-    z = (z - z.min()) / (z.max() - z.min() + 1e-5)
+    gluPerspective(45, (WINDOW_SIZE[0] / WINDOW_SIZE[1]), 0.1, 50.0)
+    glTranslatef(0.0, 0.0, -18.0)
 
-    # 2. CREATE COLOR CHANNELS ON GPU
-    # Distributing channels across different mathematical transformations
-    r_chan = torch.sin(z * np.pi)
-    g_chan = torch.sin(z * np.pi + 2.0)
-    b_chan = torch.cos(z * np.pi)
 
-    # Stack channels to form an RGB frame on VRAM
-    rgb_tensor = torch.stack([r_chan, g_chan, b_chan], dim=-1)
+    print("[SYSTEM] Generating beautiful structure... Locked!")
+    positions, colors = generate_particle_cloud(INITIAL_PARTICLE_COUNT)
 
-    # 3. TRANSFER TO DISPLAY BUFFER
-    # Convert from PyTorch GPU memory structure to Numpy CPU format for the window
-    frame = (rgb_tensor.cpu().numpy() * 255).astype(np.uint8)
+    clock = pygame.time.Clock()
+    t = 0.0
 
-    # Convert to BGR format for standard OpenCV rendering
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    print("[SYSTEM] Starting infinite loop - ab kabhi kharab nahi hoga. ESC se band karo")
 
-    # Display the visual window
-    cv2.imshow("NVIDIA PyTorch Core Burner", frame_bgr)
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
+                running = False
 
-    # Keep the delay at 1ms so the pipeline stays completely maxed out
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glPushMatrix()
 
-cv2.destroyAllWindows()
+        glRotatef(t * 20, 0, 1, 0)#3D Geometry""""
+        glRotatef(t * 15, 1, 0, 0)
+        glRotatef(math.sin(t*0.01)*10, 0, 0, 1) 
+
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glEnableClientState(GL_COLOR_ARRAY)
+        glVertexPointer(3, GL_FLOAT, 0, positions)
+        glColorPointer(3, GL_FLOAT, 0, colors)
+        glDrawArrays(GL_POINTS, 0, INITIAL_PARTICLE_COUNT)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glDisableClientState(GL_COLOR_ARRAY)
+
+        glPopMatrix()
+        pygame.display.flip()
+
+        t += 0.5 # speed
+        clock.tick(60)
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    import math
+    main()
+    """Let see How This Will Look Like @JACKSON and 2 Others Sunday Project I Hope You Will Like This Visual
+    Visualization lets Run The Code"""
+    
+
